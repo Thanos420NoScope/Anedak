@@ -1,0 +1,409 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"/>
+    <title>Kadena Transfer Tool</title>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pact-lang-api@4.1.2/pact-lang-api-global.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script>
+
+     // From util/verify.js...make DRY later
+     const is_hexadecimal = (str) => {
+         const regexp = /^[0-9a-fA-F]+$/;
+         if (regexp.test(str)) return true;
+         else return false;
+     }
+
+     const checkKey = (key) => {
+         if (key.length !== 64) {
+             throw "Key does not have length of 64";
+         } else if (!is_hexadecimal(key)){
+             throw "Key is not hex string";
+         }
+         return true;
+     }
+
+     const checkSecretKey = (key) => {
+         if (key.length !== 64 && key.length !== 128) {
+             throw "Key does not have the correct length";
+         } else if (!is_hexadecimal(key)){
+             throw "Key is not hex string";
+         }
+         return true;
+     }
+     function checkAccountName(accountName) {
+         if (accountName.length<3) {
+             throw "Account name is too short!";
+         }
+         if (accountName.length>256) {
+             throw "Account name is too long!";
+         }
+     }
+
+
+     var makeCRCTable = function(){
+          var c;
+          var crcTable = [];
+          for(var n =0; n < 256; n++){
+              c = n;
+              for(var k =0; k < 8; k++){
+                  c = ((c&1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+              }
+              crcTable[n] = c;
+          }
+          return crcTable;
+      }
+
+      var crc32 = function(str) {
+          var crcTable = window.crcTable || (window.crcTable = makeCRCTable());
+          var crc = 0 ^ (-1);
+
+          for (var i = 0; i < str.length; i++ ) {
+              crc = (crc >>> 8) ^ crcTable[(crc ^ str.charCodeAt(i)) & 0xFF];
+          }
+
+          return (crc ^ (-1)) >>> 0;
+      };
+
+
+     function convertDecimal(decimal) {
+         decimal = decimal.toString();
+         if (decimal.includes('.')) { return decimal }
+         if ((decimal / Math.floor(decimal)) === 1) {
+             decimal = decimal + ".0"
+         }
+         return decimal
+     }
+
+     function createTime() {
+         return Math.round((new Date).getTime()/1000)-15;
+     }
+
+     function getVersion(server) {
+         if (server.includes("testnet")) {
+             return "testnet04"
+         } else {
+             return "mainnet01"
+         }
+     }
+
+     function disableSubmit() {
+         document.getElementById('submit-button').disabled = true;
+     }
+     function enableSubmit() {
+         document.getElementById('submit-button').disabled = false;
+     }
+
+     $(function() {
+         $('.ui.dropdown').dropdown();
+     });
+
+     function showNegativeStatusBox() {
+         document.getElementById('status-box').setAttribute("class", "ui compact negative message result");
+     }
+     function showStatusBox() {
+         document.getElementById('status-box').setAttribute("class", "ui compact message result");
+     }
+     function showSpinner() {
+         //document.getElementById('pending-spinner').setAttribute("class", "ui dimmer active");
+     }
+     function hideSpinner() {
+         //document.getElementById('pending-spinner').setAttribute("class", "ui dimmer");
+     }
+     function clearError() {
+         document.getElementById("acct-err").innerText = "";
+         document.getElementById("kadena-form").setAttribute("class", "ui form");
+     }
+     function setError(msg) {
+         document.getElementById("acct-err").innerText = msg;
+         document.getElementById("kadena-form").setAttribute("class", "ui form error");
+     }
+     function hasValue(elId) {
+         v = document.getElementById(elId).value;
+         if (elId === "from-account") {
+           return v && v.length > 2;
+         } else {
+           return v && v.length === 64
+         }
+
+     }
+     function setSubmitStatus() {
+         e = document.getElementById('chain-id');
+         if ( hasValue('from-account') &&
+              hasValue('to-pub-key') &&
+              e.selectedIndex > 0 ) {
+             enableSubmit();
+         } else {
+             disableSubmit();
+         }
+     }
+     function validateInput(elemId, checkInput) {
+         document.getElementById(elemId).addEventListener('input', function(event) {
+             try {
+                 enableSubmit();
+                 val = event.srcElement.value;
+                 clearError();
+                 if ( val !== null && val !== "" ) {
+                     checkInput(val);
+                 }
+                 setSubmitStatus();
+             }
+             catch(err) {
+                 setError(err);
+                 disableSubmit()
+             }
+         }, false);
+     }
+     window.addEventListener('load', function (event) {
+         validateInput("to-pub-key", checkKey);
+         validateInput("from-account", checkAccountName);
+         document.getElementById("chain-id").addEventListener("change", function(event) {
+             setSubmitStatus();
+         });
+     }, false);
+
+
+     function toPubLoad(){
+       var prevMsg = document.getElementById("acct-err").innerText;
+       var errMsg = "Wrong format. Please upload a .kda public file"
+       try {
+         var fileToLoad = document.getElementById("to-pub-file").files[0];
+         if (fileToLoad.name.substr(fileToLoad.name.length - 4) !== ".kda" || fileToLoad.name.includes("private")) {
+           throw errMsg
+         }
+         var fileReader = new FileReader();
+         fileReader.onload = function(fileLoadedEvent){
+             var textFromFileLoaded = fileLoadedEvent.target.result;
+             document.getElementById("to-pub-key").value = textFromFileLoaded.replace("public: ", "");
+             setSubmitStatus();
+         };
+         fileReader.readAsText(fileToLoad, "UTF-8");
+         if (prevMsg.replace(/\s/g, '').length !== 0 ) {
+           setError(prevMsg.replace(`${errMsg} and `, "").replace(`${errMsg} and `, "").replace(`${errMsg} and `, ""));
+         } if (prevMsg === errMsg) {
+           clearError()
+         }
+       } catch (err) {
+         document.getElementById("to-pub-key").value = ""
+         if (prevMsg.replace(/\s/g, '').length !== 0) {
+           setError(`${err} and ${prevMsg}`);
+         } else {
+           setError(err);
+         }
+       }
+     }
+
+     document.addEventListener('click', async function (event) {
+         if (!event.target.matches('#submit-button')) return;
+         event.preventDefault();
+         //just in case we have the old error
+         clearError();
+         document.getElementById('status-message').textContent = ""
+         document.getElementById('request-key').textContent = ""
+         document.getElementById('status-box').setAttribute("class", "ui compact message result hidden");
+         const cid = document.getElementById('chain-id').value;
+         const network = document.getElementById('network').value;
+         const account = document.getElementById('from-account').value;
+         const pubKey = document.getElementById('to-pub-key').value;
+         const server = (network === "mainnet01" ? "us-e1.chainweb.com" : "us1.testnet.chainweb.com")
+         const host = `https://${server}/chainweb/0.0/${network}/chain/${cid}/pact`
+         //if local call fails don't do anything, account does not exist.
+         var acctExists = "n";
+         const localObj = {
+           pactCode: `(coin.details ${JSON.stringify(account)})`,
+           keyPairs: Pact.crypto.genKeyPair(),
+           meta: Pact.lang.mkMeta("fake-name", cid, 0.00001, 600, createTime(), 28800),
+           networkId: network,
+         }
+         const res = await Pact.fetch.local(localObj, host)
+         if (res.result.status === "success") {
+           if (account.indexOf(' ') >= 0) {
+             setError("Accounts that contain spaces cannot be converted to the Kadena Address format")
+             return
+           }
+           console.log(res.result.data.guard.keys[0])
+           console.log(pubKey)
+           if (res.result.data.guard.keys[0] === pubKey) {
+
+             acctExists = "y";
+           } else {
+             setError("account exists, but provided public key does not match")
+             return
+           }
+
+           const checksum = crc32((acctExists + account + `\"${cid}\"`)).toString(16)
+           //base 64 encode acct|cid|checksum
+           const b64 = btoa(`${acctExists}\n${account}\n${cid}\n${checksum}`)
+           console.log(b64)
+           document.getElementById('status-box').setAttribute("class", "ui compact message result");
+           document.getElementById('status-message').textContent = "Kadena Address"
+           document.getElementById('request-key').textContent = `${account}|${cid}|${b64}`
+         } else {
+           if (account !== pubKey) {
+             setError(`This account does not exist on chain ${cid}. To create a Kadena Address for a non-existing account, please use the public key as the account name`)
+             return
+           }
+           const checksum = crc32((acctExists + account + `\"${cid}\"`)).toString(16)
+           document.getElementById('status-box').setAttribute("class", "ui compact message result");
+           document.getElementById('status-message').textContent = "Kadena Address"
+           document.getElementById('request-key').textContent = `${account}|${cid}|${checksum}`
+         }
+     }, false);
+
+
+    </script>
+</head>
+<body>
+    <div id="main">
+        <div class="ui container">
+            <img src="https://explorer.chainweb.com/static/1lv9xhxyhlqc262kffl55w08ms1cvxsnrv49zhvm0b799dsi0v0i-kadena-k-logo.png" class="center" style="height:70px">
+            <h1>Kadena Address Generator</h1>
+            <div class="ui message warning">
+                <div class="header">
+                    Caution
+                </div>
+                This tool is to generate Kadena Addresses for Chainweaver wallet users.
+                <div>Chainweaver will only allow transfers to accounts with this format and the funds will be sent to the account name.</div>
+                <div>DO NOT USE KADENA ADDRESS OUTSIDE OF CHAINWEAVER WALLET</div>
+            </div>
+            <form id ="kadena-form"class="ui form">
+                <div class="field">
+                    <label>Account Name</label>
+                    <input type="text" id="from-account" placeholder="Enter Account Name">
+                </div>
+                <div class="field">
+                    <label>Chain ID</label>
+                </div>
+                <select class="ui dropdown" id="chain-id">
+                    <option value="">Chain ID</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
+                <div id="account-field" class="field">
+                    <label>Public Key</label>
+                    <div>
+                    <input type="text" id="to-pub-key" placeholder="Enter Public Key">
+                  </div>
+                  <div>
+                    <input id="to-pub-file" type="file" class="ui primary button" onchange="toPubLoad()"/>
+                  </div>
+                </div>
+                <div class="field">
+                    <label>Network</label>
+                </div>
+                <select class="ui dropdown" id="network">
+                    <option value="mainnet01">mainnet</option>
+                    <option value="testnet04">testnet</option>
+                </select>
+
+            <div id="acct-err" class="ui center error message">
+            </div>
+            <div>
+                <button id="submit-button" class="ui primary button" disabled  style="margin-top:10px" >Generate Address</button>
+            </div>
+
+
+          </form>
+
+          <div id="status-box" class="ui compact message result hidden" style="margin-bottom:10px">
+              <div id="status-message"></div>
+              <div id="request-key"></div>
+          </div>
+
+    </div>
+</body>
+<style>
+
+.dropdown {
+  margin-bottom: 10px;
+}
+
+.container {
+  text-align: center;
+  margin-top: 20px;
+}
+.result {
+ margin-top: 0px;
+}
+.check-button {
+  margin-top: 15px;
+}
+.ui #server {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #from-pub-key {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #to-pub-key {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #request-key {
+  word-break: break-all;
+}
+.ui #to-account {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #chain-id {
+  margin-top: 0px;
+  width: 300px;
+}
+.ui #from-account {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #amount {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #from-priv-key {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #question {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #account {
+  margin-top: 5px;
+  width: 300px;
+}
+.ui #acct-err {
+  margin-top: 20px;
+  width: 300px;
+  margin: auto;
+  font-size: 13px;
+}
+.ui #to-pub-file{
+  width: 300px;
+  height: 40px;
+}
+table#data-table {
+  margin-left:auto;
+  margin-right:auto;
+}
+
+table#data-table th{
+  text-align: center;
+  width: 100px;
+}
+table#data-table td{
+  text-align: center;
+  width: 130px;
+}
+</style>
+</html>
