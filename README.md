@@ -15,7 +15,7 @@ Includes the token itself and the gas stations.
 ## Instructions on how to deploy contracts
 
 ```
-SOON/MEDIUM
+https://medium.com/@Thanos_42/how-to-deploy-a-token-on-kadena-f71a4acf1dcf
 ```
 
 
