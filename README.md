@@ -12,7 +12,7 @@ open index.html
 Contracts used so far for the anedak token.
 Includes the token itself and the gas stations. 
 
-## Instructions how deploying contracts
+## Instructions on how to deploy contracts
 
 ```
 SOON/MEDIUM
