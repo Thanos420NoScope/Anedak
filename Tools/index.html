@@ -1,0 +1,70 @@
+<html>
+<head>
+    <title>Anedak Tools</title>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
+    <link rel="icon" href="img/favicon.ico">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pact-lang-api@4.1.2/pact-lang-api-global.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script>
+      function download(data, filename, type) {
+        var file = new Blob([data], {type: type});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+      }
+
+      document.addEventListener('click', async function (event) {
+          if (!event.target.matches('#gen-button')) return;
+          event.preventDefault();
+          var kp = Pact.crypto.genKeyPair();
+          var id = kp.publicKey.substring(0, 6);
+          var priv = `public: ${kp.publicKey}\nsecret: ${kp.secretKey}`
+          var privName = `private-KDA-keypair-${id}.txt`
+          var pub = `public: ${kp.publicKey}`
+          download(priv, privName, "text/plain;charset=utf-8");
+      }, false);
+
+    </script>
+</head>
+<body>
+<body style='overflow:hidden'>
+    <div id="main">
+      <div class="container">
+          <img src="img/logo_full.png" class="center" style="height:70px">
+          <h1>Tools</h1>
+          <div>
+            <a href="xchain.html">
+              <button id="xchain-button" class="ui primary button">Finish Cross Chain Transfer</button>
+            </a>
+          </div>
+          <div style="margin-top:10px;">
+            <button id="gen-button" class="ui primary button">Generate KeyPair (saves to file)</button>
+            <!-- <a href="address.html"><button id="submit-button" class="ui primary button">Generate Kadena Address</button></a> -->
+          </div>
+    </div>
+</body>
+<style>
+
+.container {
+  text-align: center;
+  margin-top: 20px;
+}
+.field {
+  margin-bottom: 20px;
+}
+</style>
+</html>

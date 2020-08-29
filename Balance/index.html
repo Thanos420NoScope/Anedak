@@ -1,6 +1,7 @@
 <html>
 <head>
-    <title>Kadena Balance Checker</title>
+
+    <title>Anedak Balance Checker</title>
     <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
     <link rel="shortcut icon" type="image/x-icon" href="img/favicon.ico">
@@ -22,7 +23,7 @@
       }
     }
 
-    var chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    var chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
     var chainBal = {}
 
 
@@ -47,10 +48,10 @@
             cids = cids.map(x => x.toString())
             chainIds = cids;
           } else {
-            chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
           }
         } else {
-          chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+          chainIds = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
         }
         return {
           nv: nv
@@ -65,7 +66,7 @@
     async function getBalance (host, acctName, chainId) {
       try {
         const response = await Pact.fetch.local({
-            pactCode: `(coin.details ${acctName})`,
+            pactCode: `(free.anedak.details ${acctName})`,
             meta: dumMeta(chainId)
           }, host(chainId))
         const result = response.result;
@@ -78,7 +79,7 @@
         let totalBal = Object.values(chainBal).reduce((accum, cum) => accum+cum, 0);
         const balanceElem = document.getElementById(`chain-${chainId}-balance-data`);
         const guardElem = document.getElementById(`chain-${chainId}-guard-data`);
-        attachCell("h4", `Total Balance of ${acctName}: ${totalBal} KDA`, "total", `total-value`)
+        attachCell("h4", `Total Balance of ${acctName}: ${totalBal} ADK`, "total", `total-value`)
         if (result.status==="success"){
           balanceElem.textContent = bal;
           balanceElem.className = "";
@@ -128,11 +129,11 @@
 
     window.addEventListener('load', function (event) {
       document.getElementById("server").value = "us-e1.chainweb.com"
-      if (localStorage.getItem("kadena-server")){
-        document.getElementById("server").value = localStorage.getItem("kadena-server");
+      if (localStorage.getItem("anedak-server")){
+        document.getElementById("server").value = localStorage.getItem("anedak-server");
       }
-      if (localStorage.getItem("kadena-account")){
-        document.getElementById("account").value = localStorage.getItem("kadena-account");
+      if (localStorage.getItem("anedak-account")){
+        document.getElementById("account").value = localStorage.getItem("anedak-account");
       }
     }, false);
 
@@ -145,12 +146,12 @@
       const host = (chainId) => `https://${server}/chainweb/0.0/${info.nv}/chain/${chainId}/pact`;
       if (document.getElementById('account').value.length<3 || document.getElementById('account').value.length>256){
         document.getElementById("account-field").className = "field error"
-        document.getElementById("kadena-form").className = "ui form error"
+        document.getElementById("anedak-form").className = "ui form error"
       } else{
         document.getElementById("account-field").className = "field"
-        document.getElementById("kadena-form").className = "ui form"
-        localStorage.setItem("kadena-server", document.getElementById('server').value);
-        localStorage.setItem("kadena-account", document.getElementById('account').value);
+        document.getElementById("anedak-form").className = "ui form"
+        localStorage.setItem("anedak-server", document.getElementById('server').value);
+        localStorage.setItem("anedak-account", document.getElementById('account').value);
         attachCell("tr", "", "chain-table", "chain-header");
         attachCell("th", "Chain ID", "chain-header", "chainId-header");
         attachCell("th", "Guard", "chain-header", "guard-header");
@@ -171,8 +172,9 @@
 <body>
     <div id="main">
       <div class="container">
-          <h1>Kadena Balance Checker</h1>
-          <form id ="kadena-form"class="ui form">
+	      <img src="img/logo_full.png" class="center" style="height:70px">
+          <h1>Balance Checker</h1>
+          <form id ="anedak-form"class="ui form">
             <div id="node-field" class="field">
               <label>Target Chainweb Server</label>
               <input type="text" id="server" placeholder="Enter Your Node Server">
@@ -209,15 +211,15 @@
 }
 .ui #server {
   margin-top: 5px;
-  width: 300px;
+  width: 275px;
 }
 .ui #account {
   margin-top: 5px;
-  width: 300px;
+  width: 550px;
 }
 .ui #acct-err {
   margin-top: 5px;
-  width: 300px;
+  width: 500px;
   margin: auto;
   font-size: 13px;
 }
