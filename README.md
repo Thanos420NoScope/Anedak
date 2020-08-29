@@ -7,14 +7,17 @@ Webpage to check account balance on Anedak.
 open index.html
 ```
 
-# Anedak Transfer Page
-Webpage to send Anedak tokens. 
 
-## Open file on browser
+# Contracts
+Contracts used so far for the anedak token.
+Includes the token itself and the gas stations. 
+
+## Instructions how deploying contracts
 
 ```
-open index.html
+SOON/MEDIUM
 ```
+
 
 # Anedak Tools
 Webpage to complete cross-chain transfers and generate new addresses. 
@@ -24,3 +27,15 @@ Webpage to complete cross-chain transfers and generate new addresses.
 ```
 open index.html
 ```
+
+
+# Anedak Transfer Page
+Webpage to send Anedak tokens. 
+
+## Open file on browser
+
+```
+open index.html
+```
+
+
