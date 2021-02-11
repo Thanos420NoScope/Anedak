@@ -16,7 +16,7 @@
           (<= (length accountId) 256)))
     ]
 
-  (implements fungible-v1)
+  (implements fungible-v2)
 
   ; --------------------------------------------------------------------------
   ; Schemas and Tables
@@ -149,7 +149,7 @@
   )
 
   ;; ; --------------------------------------------------------------------------
-  ;; ; Fungible-v1 Implementation
+  ;; ; Fungible-v2 Implementation
 
   (defun transfer-create:string
     ( sender:string
@@ -320,7 +320,7 @@
     (at 'balance (read token-table account ['balance]))
   )
 
-  (defun details:object{fungible-v1.account-details}
+  (defun details:object{fungible-v2.account-details}
     ( account:string )
 
     (with-read token-table account
