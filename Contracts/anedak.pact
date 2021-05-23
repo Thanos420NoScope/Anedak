@@ -7,7 +7,7 @@
        \ Adapted from Kadena's coin.pact contract and finprint. "
 
   @model
-    [ (defproperty conserves-mass
+    [ (defproperty conserves-mass (amount:decimal)
         (= (column-delta token-table 'balance) 0.0))
 
       (defproperty valid-account-id (accountId:string)
@@ -98,9 +98,9 @@
     " ID for the account which initially owns all the tokens. ")
 
   (defconst INITIAL_SUPPLY:decimal 50000.0
-    " Initial supply of 1 million indivisible tokens. (50k x20 chains)")
+    " Initial supply of 1 million tokens. (50k x20 chains)")
 
-  (defconst DECIMALS 0
+  (defconst DECIMALS 12
     " Specifies the minimum denomination for token transactions. ")
 
   (defconst ACCOUNT_ID_CHARSET CHARSET_LATIN1
@@ -113,6 +113,7 @@
 
   (defconst ACCOUNT_ID_MAX_LENGTH 256
     " Maximum character length for account IDs. ")
+
 
   ; --------------------------------------------------------------------------
   ; Utilities
@@ -159,10 +160,10 @@
 
     @doc " Transfer to an account, creating it if it does not exist. "
 
-    @model [ (property conserves-mass)
+    @model [ (property (conserves-mass amount))
              (property (> amount 0.0))
-             (property (valid-account sender))
-             (property (valid-account receiver))
+             (property (valid-account-id sender))
+             (property (valid-account-id receiver))
              (property (!= sender receiver)) ]
 
     (with-capability (TRANSFER sender receiver amount)
@@ -178,10 +179,10 @@
 
     @doc " Transfer to an account, failing if the account does not exist. "
 
-    @model [ (property conserves-mass)
+    @model [ (property (conserves-mass amount))
              (property (> amount 0.0))
-             (property (valid-account sender))
-             (property (valid-account receiver))
+             (property (valid-account-id sender))
+             (property (valid-account-id receiver))
              (property (!= sender receiver)) ]
 
     (with-read token-table receiver
@@ -265,8 +266,8 @@
 
     @model [ (property (> amount 0.0))
              (property (!= receiver ""))
-             (property (valid-account sender))
-             (property (valid-account receiver))
+             (property (valid-account-id sender))
+             (property (valid-account-id receiver))
            ]
 
     (step
