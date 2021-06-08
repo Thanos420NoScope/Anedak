@@ -1,7 +1,7 @@
 ;(define-keyset 'admin-anedak (read-keyset "admin-anedak"))
 
 ;(namespace "free")
-(module anedak GOVERNANCE
+(module coin GOVERNANCE
 
   @doc " 'Anedak' is the first token implemented on the Kadena mainnet \
        \ Adapted from Kadena's coin.pact contract and finprint. "
@@ -67,25 +67,28 @@
   (defcap TRANSFER:bool
     ( sender:string
       receiver:string
-      amount:decimal
-    )
+      amount:decimal )
+
+    @doc " Capability to perform transfer between two accounts. "
+
     @managed amount TRANSFER-mgr
-    (enforce (!= sender receiver) "same sender and receiver")
+
+    (enforce (!= sender receiver) "Sender cannot be the receiver.")
     (enforce-unit amount)
-    (enforce (> amount 0.0) "Positive amount")
+    (enforce (> amount 0.0) "Transfer amount must be positive.")
     (compose-capability (DEBIT sender))
     (compose-capability (CREDIT receiver))
   )
 
   (defun TRANSFER-mgr:decimal
     ( managed:decimal
-      requested:decimal
-    )
+      requested:decimal )
 
     (let ((newbal (- managed requested)))
       (enforce (>= newbal 0.0)
         (format "TRANSFER exceeded for balance {}" [managed]))
-      newbal)
+      newbal
+    )
   )
 
   ; --------------------------------------------------------------------------
@@ -111,11 +114,6 @@
   (defconst ACCOUNT_ID_MAX_LENGTH 256
     " Maximum character length for account IDs. ")
 
-    (defconst TX_FEE:decimal 0.05
-      " Percentage of every transaction collected ")
-
-    (defconst ASWAP_PAIR:string 'GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ
-      " LP account receiving the fees ")
 
   ; --------------------------------------------------------------------------
   ; Utilities
@@ -154,56 +152,44 @@
   ;; ; --------------------------------------------------------------------------
   ;; ; Fungible-v2 Implementation
 
-  (defun transfer:string (sender:string receiver:string amount:decimal)
-    @model [ (property (conserves-mass amount))
-             (property (> amount 0.0))
-             (property (valid-account-id sender))
-             (property (valid-account-id receiver))
-             (property (!= sender receiver)) ]
-
-    (enforce (!= sender receiver)
-      "sender cannot be the receiver of a transfer")
-
-    (validate-account-id sender)
-    (validate-account-id receiver)
-
-    (enforce (> amount 0.0)
-      "transfer amount must be positive")
-
-    (enforce-unit amount)
-
-    (with-capability (TRANSFER sender receiver amount)
-      (debit sender amount)
-      (with-read token-table receiver
-        { "guard" := g }
-
-        (credit receiver g amount))
-      )
-    )
-
   (defun transfer-create:string
     ( sender:string
       receiver:string
       receiver-guard:guard
       amount:decimal )
 
-    @model [ (property (conserves-mass amount)) ]
+    @doc " Transfer to an account, creating it if it does not exist. "
 
-    (enforce (!= sender receiver)
-      "sender cannot be the receiver of a transfer")
-
-    (validate-account-id sender)
-    (validate-account-id receiver)
-
-    (enforce (> amount 0.0)
-      "transfer amount must be positive")
-
-    (enforce-unit amount)
+    @model [ (property (conserves-mass amount))
+             (property (> amount 0.0))
+             (property (valid-account-id sender))
+             (property (valid-account-id receiver))
+             (property (!= sender receiver)) ]
 
     (with-capability (TRANSFER sender receiver amount)
       (debit sender amount)
-      (credit receiver receiver-guard amount))
+      (credit receiver receiver-guard amount)
     )
+  )
+
+  (defun transfer:string
+    ( sender:string
+      receiver:string
+      amount:decimal )
+
+    @doc " Transfer to an account, failing if the account does not exist. "
+
+    @model [ (property (conserves-mass amount))
+             (property (> amount 0.0))
+             (property (valid-account-id sender))
+             (property (valid-account-id receiver))
+             (property (!= sender receiver)) ]
+
+    (with-read token-table receiver
+      { "guard" := guard }
+      (transfer-create sender receiver guard amount)
+    )
+  )
 
   (defun debit
     ( accountId:string
@@ -257,20 +243,7 @@
       (enforce (= currentGuard guard) "Account guards do not match.")
 
       (write token-table accountId
-        { "balance" : (+ balance (* (- 1 TX_FEE) amount))
-        , "guard"   : currentGuard
-        }
-      )
-    )
-    (with-default-read token-table ASWAP_PAIR
-      { "balance" : 0.0
-      , "guard"   : guard
-      }
-      { "balance" := balance
-      , "guard"   := currentGuard
-      }
-      (write token-table ASWAP_PAIR
-        { "balance" : (+ balance (* TX_FEE amount))
+        { "balance" : (+ balance amount)
         , "guard"   : currentGuard
         }
       )

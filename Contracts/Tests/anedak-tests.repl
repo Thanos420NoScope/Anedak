@@ -1,0 +1,26 @@
+(begin-tx)
+(load "deps/fungible-v2.pact")
+(load "anedak.pact")
+(env-data { "admin-anedak": ["admin-anedak"], "user-anedak": ["user-anedak"], "user2-anedak": ["user2-anedak"], "user2key2-anedak": ["user2key2-anedak"]})
+(env-keys ["admin-anedak", "user-anedak", "user2-anedak", "user2key2-anedak"])
+(define-keyset 'admin-anedak (read-keyset "admin-anedak"))
+(define-keyset 'user-anedak (read-keyset "user-anedak"))
+(define-keyset 'user2-anedak (read-keyset "user2-anedak"))
+(commit-tx)
+
+;; formal verification
+(load "tests/validate.repl")
+
+;; typecheck
+(load "tests/typecheck.repl")
+
+(begin-tx)
+(load "deps/fungible-util.pact")
+(load "deps/swap-callable.pact")
+(load "deps/tokens.pact")
+(load "deps/exchange.pact")
+(load "deps/coin.pact")
+(commit-tx)
+
+;; unit-tests
+(load "tests/unit-tests.repl")

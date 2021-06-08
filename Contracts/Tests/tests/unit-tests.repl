@@ -1,0 +1,468 @@
+"Initialization tests"
+
+(begin-tx)
+(use anedak)
+
+(env-keys ["user-anedak"])
+(expect-failure
+  "Need admin Key"
+  "Keyset failure"
+  (initialize)
+)
+
+(env-keys ["admin-anedak"])
+(expect
+  "Contract Initialized"
+  [
+    "Write succeeded"
+    50000.0
+  ]
+  [
+    (initialize)
+    (get-balance ROOT_ACCOUNT_ID)
+  ]
+)
+
+(expect-failure
+  "Cant initialize twice"
+  "row found for key"
+  (initialize)
+)
+(commit-tx)
+(begin-tx)
+(use coin)
+
+(env-keys ["user-anedak"])
+(expect-failure
+  "Need admin key"
+  "Keyset failure"
+  (initialize)
+)
+
+(env-keys ["admin-anedak"])
+(expect
+  "Initialized"
+  [
+    "Write succeeded"
+    50000.0
+  ]
+  [
+    (initialize)
+    (get-balance ROOT_ACCOUNT_ID)
+  ]
+)
+
+(expect-failure
+  "Not initialized twice"
+  "row found for key"
+  (initialize)
+)
+
+(env-sigs [{"key": "admin-anedak",
+            "caps": [(TRANSFER ROOT_ACCOUNT_ID 'user-anedak 234.123456789012)]}])
+(expect
+  "Transfer sent to user"
+  "Write succeeded"
+  (transfer-create ROOT_ACCOUNT_ID 'user-anedak
+  (read-keyset 'user-anedak) 234.123456789012)
+)
+
+(commit-tx)
+"Exchange tests"
+(begin-tx)
+(use anedak)
+(use coin)
+(use exchange)
+
+(env-keys ["user-anedak"])
+(expect
+  "KDA/ADK Pair created"
+  {"key": "anedak:coin",
+   "account": "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"}
+    (exchange.create-pair coin anedak "")
+)
+
+(expect-failure
+  "Pair alerady exists"
+  ""
+    (exchange.create-pair coin anedak "")
+)
+(commit-tx)
+"Liquidity tests"
+(begin-tx)
+(use anedak)
+
+(env-keys ["admin-anedak"])
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "admin-anedak", "caps": [
+          (coin.TRANSFER "ROOT" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000),
+          (anedak.TRANSFER "ROOT" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000)
+          ]}])
+
+(expect
+  "Initial Liquidity added"
+  {"liquidity": 99.900000000000,
+  "supply": 100.000000000000,
+  "amount0": 100.0,
+  "amount1": 100.000000000000}
+    (exchange.add-liquidity coin anedak 100.0 100.0 100.0 100.0
+     "ROOT" "ROOT" (read-keyset 'admin-anedak))
+)
+
+(commit-tx)
+"Transfer tests"
+(begin-tx)
+(use anedak)
+
+(env-sigs [{"key": "admin-anedak",
+            "caps": [(TRANSFER ROOT_ACCOUNT_ID 'user-anedak 300.0)]}])
+
+(expect
+  "Transfer sent to user"
+  "Write succeeded"
+  (transfer-create ROOT_ACCOUNT_ID 'user-anedak
+  (read-keyset 'user-anedak) 234.123456789012)
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(expect-failure
+  "Guards do not match"
+  "guards do not match"
+  (transfer-create ROOT_ACCOUNT_ID 'user-anedak
+  (read-keyset 'user2-anedak) 10.0)
+)
+(rollback-tx)
+"Protected tests"
+(begin-tx)
+(use anedak)
+
+(expect-failure
+  "CAP Not granted"
+  "not granted"
+  (debit ROOT_ACCOUNT_ID 1.0)
+)
+
+(expect-failure
+  "CAP Not granted"
+  "not granted"
+  (credit ROOT_ACCOUNT_ID (read-keyset 'admin-anedak) 1.0)
+)
+
+(commit-tx)
+"Account tests"
+(begin-tx)
+(use anedak)
+
+(env-keys ["user-anedak"])
+
+(expect
+  "Account created"
+  "Write succeeded"
+  (create-account 'user2-anedak (read-keyset 'user2-anedak))
+)
+
+(commit-tx)
+"Balance tests"
+(begin-tx)
+(use anedak)
+
+(expect
+  "Correct balance"
+  222.4172839495614
+  (get-balance 'user-anedak)
+)
+
+(expect
+  "Correct balance"
+  49665.876543210988
+  (get-balance 'ROOT)
+)
+
+(expect-failure
+  "No account found"
+  "row not found"
+  (get-balance 'missing-account)
+)
+
+(commit-tx)
+"More transfer tests"
+(begin-tx)
+(use anedak)
+(env-sigs [{"key": "user-anedak",
+            "caps": [(TRANSFER 'user-anedak 'user2-anedak 60.0)]}])
+
+(expect
+  "Transfer sent to user2"
+  "Write succeeded"
+  (transfer 'user-anedak 'user2-anedak 55.5)
+)
+
+(expect-failure
+  "Amount must be positive"
+  "amount must be positive"
+  (transfer 'user-anedak 'user2-anedak -1.0)
+)
+
+(expect-failure
+  "Amount must be positive"
+  "amount must be positive"
+  (transfer 'user-anedak 'user2-anedak 0.0)
+)
+
+(expect-failure
+  "Violates minimum denomination"
+  "violates minimum denomination"
+  (transfer 'user-anedak 'user2-anedak 1.1234567891011121314)
+)
+
+(expect
+  "Correct balance"
+  166.9172839495614
+  (get-balance 'user-anedak)
+)
+
+(expect
+  "Correct balance"
+  52.725
+  (get-balance 'user2-anedak)
+)
+
+(expect
+  "Correct balance"
+  49665.876543210988
+  (get-balance 'ROOT)
+)
+
+(expect
+  "Correct balance"
+  114.4811728394506
+  (get-balance 'GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ)
+)
+
+(commit-tx)
+"Rotation tests"
+(begin-tx)
+(use anedak)
+
+(env-keys ["user2-anedak", "user2key2-anedak"])
+
+(expect
+  "Key rotated"
+  "Write succeeded"
+  (rotate 'user2-anedak (read-keyset 'user2key2-anedak))
+)
+
+(env-sigs [{"key": "user2-anedak",
+            "caps": [(TRANSFER 'user2-anedak 'user-anedak 10.0)]}])
+
+(expect-failure
+  "Key not rotated"
+  "Keyset failure"
+  (transfer 'user2-anedak 'user-anedak 10.0)
+)
+
+(env-sigs [{"key": "user2key2-anedak",
+            "caps": [(TRANSFER 'user2-anedak 'user-anedak 10.0)]}])
+
+(expect
+  "Transfer sent to user"
+  "Write succeeded"
+  (transfer 'user2-anedak 'user-anedak 10.0)
+)
+(commit-tx)
+"Fees tests"
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak",
+            "caps": [(TRANSFER 'user-anedak 'user2-anedak 50.0)]}])
+
+(expect
+  "Transfer sent to user2"
+  "Write succeeded"
+  (transfer 'user-anedak 'user2-anedak 50.0)
+)
+
+(expect
+  "Correct balance"
+  90.225
+  (get-balance 'user2-anedak)
+)
+
+(expect
+  "Correct balance"
+  117.4811728394506
+  (get-balance 'GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ)
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (coin.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000),
+          (anedak.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000)
+          ]}])
+
+(expect
+  "User Liquidity"
+  {"liquidity": 100.000000000000,
+   "supply": 200.000000000000,
+   "amount0": 117.4811728394506,
+   "amount1": 100.000000000000}
+    (exchange.add-liquidity coin anedak 100.0 100.0 100.0 100.0
+     "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+
+(expect
+  "Correct balance"
+  217.4811728394506
+  (get-balance 'GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ)
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (tokens.TRANSFER "anedak:coin" "user-anedak"
+          "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ" 100.0)
+          ]}])
+
+(expect
+  "Correct balance"
+  100.0
+  (tokens.get-balance "anedak:coin" 'user-anedak)
+)
+
+(expect
+  "Correct balance"
+  99.900000000000
+  (tokens.get-balance "anedak:coin" 'ROOT)
+)
+
+(expect
+  "Remove Liquidity"
+  {"amount0": 108.740586419725,
+   "amount1": 100.000000000000}
+  (exchange.remove-liquidity coin anedak 100.0 0.0 0.0
+   "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (coin.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000),
+          (anedak.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000)
+          ]}])
+
+(expect
+  "User Liquidity"
+  {"liquidity": 87.582841304982,
+   "supply": 187.582841304982,
+   "amount0": 100.00000000000000,
+   "amount1": 87.582841304982}
+    (exchange.add-liquidity coin anedak 100.0 100.0 0.0 0.0
+     "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (tokens.TRANSFER "anedak:coin" "user-anedak"
+          "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ" 100.0)
+          ]}])
+
+(expect
+  "Correct balance"
+  87.582841304982
+  (tokens.get-balance "anedak:coin" 'user-anedak)
+)
+
+(expect
+  "Remove Liquidity"
+  {"amount0": 99.999999999999,"amount1": 87.582841304982}
+  (exchange.remove-liquidity coin anedak 87.582841304982 0.0 0.0
+   "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (coin.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000),
+          (anedak.TRANSFER "user-anedak" "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ"
+          100.000000000000)
+          ]}])
+
+(expect
+  "User Liquidity"
+  {"liquidity": 83.908374385978,
+   "supply": 183.908374385978,
+   "amount0": 100.00000000000000,
+   "amount1": 83.908374385978}
+    (exchange.add-liquidity coin anedak 100.0 100.0 0.0 0.0
+     "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "admin-anedak",
+ "caps": [(TRANSFER 'ROOT 'user-anedak 6000.0)]}])
+
+(expect
+  "Transfer sent"
+  "Write succeeded"
+  (transfer 'ROOT 'user-anedak 6000.0)
+)
+
+(commit-tx)
+(begin-tx)
+(use anedak)
+(env-chain-data { "chain-id": "3"})
+(env-sigs [{"key": "user-anedak", "caps": [
+          (tokens.TRANSFER "anedak:coin" "user-anedak"
+          "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ" 100.0)
+          ]}])
+
+(expect
+  "Correct balance"
+  83.908374385978
+  (tokens.get-balance "anedak:coin" 'user-anedak)
+)
+
+(expect
+  "Remove Liquidity"
+  {"amount0": 236.875291295667,
+   "amount1": 83.908374385978}
+  (exchange.remove-liquidity coin anedak 83.908374385978 0.0 0.0
+   "user-anedak" "user-anedak" (read-keyset 'user-anedak))
+)
+(get-balance "ROOT")
+(get-balance "user-anedak")
+(get-balance "user2-anedak")
+(get-balance "GExPoOQLl-okFdLrxtdX2JcucVYAl3KLkkdspyZBERQ")
+(commit-tx)

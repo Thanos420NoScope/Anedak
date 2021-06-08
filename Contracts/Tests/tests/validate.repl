@@ -1,0 +1,3 @@
+(begin-tx)
+(verify 'anedak)
+(commit-tx)
