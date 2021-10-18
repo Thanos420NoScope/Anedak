@@ -15,9 +15,7 @@ Includes the token itself and the gas stations.
 
 ## Instructions on how to deploy contracts
 
-```
-https://medium.com/@Thanos_42/how-to-deploy-a-token-on-kadena-f71a4acf1dcf
-```
+https://medium.com/kadenacoin/how-to-deploy-tokens-on-kadena-efab6529de2
 
 
 # Anedak Tools
