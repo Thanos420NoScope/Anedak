@@ -234,21 +234,42 @@
     (require-capability (CREDIT accountId))
 
     (with-default-read token-table accountId
-      { "balance" : 0.0
-      , "guard"   : guard
-      }
-      { "balance" := balance
-      , "guard"   := currentGuard
-      }
-      (enforce (= currentGuard guard) "Account guards do not match.")
+      { "balance" : -1.0, "guard" : guard }
+      { "balance" := balance, "guard" := retg }
+      ; we don't want to overwrite an existing guard with the user-supplied one
+      (enforce (= retg guard)
+        "account guards do not match")
 
-      (write token-table accountId
-        { "balance" : (+ balance amount)
-        , "guard"   : currentGuard
-        }
-      )
-    )
-  )
+      (let ((is-new
+             (if (= balance -1.0)
+                 (enforce-reserved accountId guard)
+               false)))
+
+        (write token-table accountId
+          { "balance" : (if is-new amount (+ balance amount))
+          , "guard"   : retg
+          }))
+      ))
+
+  (defun check-reserved:string (accountId:string)
+    " Checks ACCOUNT for reserved name and returns type if \
+    \ found or empty string. Reserved names start with a \
+    \ single char and colon, e.g. 'c:foo', which would return 'c' as type."
+    (let ((pfx (take 2 accountId)))
+      (if (= ":" (take -1 pfx)) (take 1 pfx) "")))
+
+  (defun enforce-reserved:bool (accountId:string guard:guard)
+    @doc "Enforce reserved account name protocols."
+    (let ((r (check-reserved accountId)))
+      (if (= "" r) true
+        (if (= "k" r)
+          (enforce
+            (= (format "{}" [guard])
+               (format "KeySet {keys: [{}],pred: keys-all}"
+                       [(drop 2 accountId)]))
+            "Single-key account protocol violation")
+          (enforce false
+            (format "Unrecognized reserved protocol: {}" [r]))))))
 
   (defschema crosschain-schema
     @doc " Schema for yielded value in cross-chain transfers "
@@ -359,6 +380,9 @@
     @doc " Create a new account. "
 
     @model [ (property (valid-account-id account)) ]
+
+    (validate-account-id account)
+    (enforce-reserved account guard)
 
     (insert token-table account
       { "balance" : 0.0
