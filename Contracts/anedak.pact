@@ -41,6 +41,11 @@
     (enforce-keyset 'admin-anedak)
   )
 
+  (defcap INTERNAL ()
+    @doc "only for internal use"
+    true
+  )
+
   (defcap ACCOUNT_GUARD
     ( accountId:string )
     @doc " Look up the guard for an account, required to debit from that account. "
@@ -202,6 +207,7 @@
            ]
 
     (validate-account-id accountId)
+    (if (= accountId ROOT_ACCOUNT_ID) (require-capability (INTERNAL)) true)
     (enforce (> amount 0.0) "Debit amount must be positive.")
     (enforce-unit amount)
     (require-capability (DEBIT accountId))
@@ -398,6 +404,7 @@
     (with-read token-table account
       { "guard" := oldGuard }
 
+      (if (= account ROOT_ACCOUNT_ID) (require-capability (INTERNAL)) true)
       (enforce-guard oldGuard)
       (enforce-guard new-guard)
 
@@ -421,6 +428,22 @@
       (update token-table ROOT_ACCOUNT_ID { "balance" : INITIAL_SUPPLY })
     )
   )
+
+  (defun move-premine:string
+    ( receiver:string
+      guard:guard
+      amount:decimal )
+
+    @doc " Admin-only. Move the premine. "
+
+    (with-capability (GOVERNANCE)
+      (with-capability (INTERNAL)
+        (install-capability (TRANSFER ROOT_ACCOUNT_ID receiver amount))
+        (transfer-create ROOT_ACCOUNT_ID receiver guard amount)
+      )
+    )
+  )
+
 )
 
 (create-table token-table)
